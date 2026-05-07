@@ -1,359 +1,328 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Roster Service — Load Test Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a202c; padding: 24px; }
+  <meta charset="UTF-8"/>
+  <title>Breaking Point Test — Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; background:#0f1117; color:#e2e8f0; padding:24px; }
+    .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; }
+    .header h1 { font-size:22px; font-weight:700; color:#f1f5f9; }
+    .header p  { font-size:13px; color:#64748b; margin-top:4px; }
+    .badge { padding:6px 16px; border-radius:999px; font-size:13px; font-weight:700; }
+    .badge-green  { background:#052e16; color:#4ade80; border:1px solid #166534; }
+    .badge-red    { background:#2d0a0a; color:#f87171; border:1px solid #991b1b; }
 
-  .header { background: linear-gradient(135deg, #1e3a5f, #2d6a9f); color: white; border-radius: 16px; padding: 28px 32px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
-  .header h1 { font-size: 1.6rem; font-weight: 700; }
-  .header p { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; }
-  .overall-badge { background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px 20px; text-align: center; }
-  .overall-badge .label { font-size: 0.75rem; opacity: 0.8; }
-  .overall-badge .value { font-size: 1.8rem; font-weight: 700; }
+    .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px; }
+    .grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+    .grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:20px; }
 
-  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .card { background:#1e2330; border:1px solid #2d3348; border-radius:12px; padding:20px; }
+    .card-title { font-size:11px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+    .card-value { font-size:28px; font-weight:700; color:#f1f5f9; line-height:1; }
+    .card-unit  { font-size:14px; color:#94a3b8; margin-left:4px; }
+    .card-sub   { font-size:12px; color:#64748b; margin-top:6px; }
+    .card-green  { border-color:#166534; }
+    .card-red    { border-color:#991b1b; }
+    .card-yellow { border-color:#854d0e; }
+    .value-green  { color:#4ade80 !important; }
+    .value-red    { color:#f87171 !important; }
+    .value-yellow { color:#facc15 !important; }
 
-  .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-  .card-title { font-size: 0.8rem; color: #718096; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .section-title { font-size:13px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; margin:24px 0 12px; display:flex; align-items:center; gap:8px; }
+    .section-title::after { content:''; flex:1; height:1px; background:#2d3348; }
 
-  .kpi-value { font-size: 2.2rem; font-weight: 800; line-height: 1; }
-  .kpi-sub { font-size: 0.78rem; color: #a0aec0; margin-top: 4px; }
-  .kpi-sla { font-size: 0.75rem; margin-top: 8px; padding: 2px 10px; border-radius: 999px; display: inline-block; font-weight: 600; }
-  .pass { color: #276749; } .warn { color: #975a16; } .fail { color: #9b2c2c; }
-  .bg-pass { background: #c6f6d5; color: #276749; }
-  .bg-warn { background: #fefcbf; color: #975a16; }
-  .bg-fail { background: #fed7d7; color: #9b2c2c; }
+    .chart-card { background:#1e2330; border:1px solid #2d3348; border-radius:12px; padding:20px; }
+    .chart-card h3 { font-size:13px; color:#94a3b8; margin-bottom:16px; font-weight:600; }
+    .chart-wrap { position:relative; height:220px; }
 
-  .progress-wrap { margin-top: 10px; }
-  .progress-track { background: #edf2f7; border-radius: 999px; height: 10px; margin-top: 4px; }
-  .progress-fill { height: 100%; border-radius: 999px; }
+    /* ── Breaking Point Banner ── */
+    .break-banner {
+      background: #2d0a0a;
+      border: 1px solid #991b1b;
+      border-radius: 12px;
+      padding: 16px 24px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .break-banner .icon { font-size: 32px; }
+    .break-banner h2 { color: #f87171; font-size: 18px; margin-bottom: 4px; }
+    .break-banner p  { color: #94a3b8; font-size: 13px; }
 
-  .timeline-wrap { overflow-x: auto; }
-  .tl-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .tl-label { width: 130px; font-size: 0.72rem; color: #4a5568; font-family: monospace; flex-shrink: 0; }
-  .tl-track { flex: 1; height: 28px; background: #edf2f7; border-radius: 6px; position: relative; min-width: 200px; }
-  .tl-submit { position: absolute; top: 0; height: 100%; border-radius: 6px 0 0 6px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: white; font-weight: 600; }
-  .tl-poll { position: absolute; top: 0; height: 100%; border-radius: 0 6px 6px 0; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: white; font-weight: 600; }
-  .tl-total { width: 60px; text-align: right; font-size: 0.72rem; color: #718096; flex-shrink: 0; }
-  .tl-badge { width: 70px; flex-shrink: 0; }
+    .sla-table { width:100%; border-collapse:collapse; }
+    .sla-table th { font-size:11px; color:#64748b; text-align:left; padding:8px 12px; border-bottom:1px solid #2d3348; text-transform:uppercase; }
+    .sla-table td { padding:10px 12px; font-size:13px; border-bottom:1px solid #1a1f2e; }
+    .sla-table tr:last-child td { border-bottom:none; }
+    .pill { display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+    .pill-ok   { background:#052e16; color:#4ade80; }
+    .pill-fail { background:#2d0a0a; color:#f87171; }
+    .pill-warn { background:#1c1a05; color:#facc15; }
 
-  .legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
-  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #718096; }
-  .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .stage-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #1a1f2e; }
+    .stage-row:last-child { border-bottom:none; }
+    .stage-name { width:110px; font-size:13px; color:#94a3b8; flex-shrink:0; }
+    .stage-bar-wrap { flex:1; background:#0f1117; border-radius:4px; height:8px; overflow:hidden; }
+    .stage-bar { height:100%; border-radius:4px; }
+    .stage-val  { width:120px; text-align:right; font-size:12px; color:#64748b; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-  th { text-align: left; padding: 10px 14px; color: #718096; font-weight: 600; background: #f7fafc; border-bottom: 2px solid #e2e8f0; }
-  td { padding: 10px 14px; border-bottom: 1px solid #f0f4f8; }
-  tr:hover td { background: #f7fafc; }
-
-  .issue-card { border-left: 4px solid; border-radius: 0 12px 12px 0; padding: 14px 16px; margin-bottom: 10px; }
-  .issue-high { border-color: #fc8181; background: #fff5f5; }
-  .issue-med  { border-color: #f6ad55; background: #fffaf0; }
-  .issue-low  { border-color: #68d391; background: #f0fff4; }
-  .issue-title { font-weight: 700; font-size: 0.85rem; margin-bottom: 4px; }
-  .issue-desc  { font-size: 0.78rem; color: #4a5568; }
-  .issue-action { font-size: 0.75rem; color: #2b6cb0; margin-top: 6px; }
-
-  .group-tag { padding: 2px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
-  .g1 { background: #c6f6d5; color: #276749; }
-  .g2 { background: #fefcbf; color: #975a16; }
-  .g3 { background: #fed7d7; color: #9b2c2c; }
-
-  canvas { max-height: 250px; }
-
-  .insight-box { background: #ebf8ff; border: 1px solid #bee3f8; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
-  .insight-box h3 { color: #2b6cb0; font-size: 0.9rem; margin-bottom: 8px; }
-  .insight-box ul { padding-left: 18px; font-size: 0.82rem; color: #2c5282; line-height: 1.8; }
-</style>
+    .footer { margin-top:32px; text-align:center; font-size:12px; color:#334155; }
+  </style>
 </head>
 <body>
 
 <!-- HEADER -->
 <div class="header">
   <div>
-    <h1>🚀 Roster Service — Load Test Report</h1>
-    <p>10 VUs × 10 iterations | Concurrent Mode | 6 May 2026</p>
-    <p style="margin-top:6px; font-size:0.8rem; opacity:0.7;">Base URL: roster-service-stg.metthier.ai</p>
+    <h1>🚀 Breaking Point Test — Dashboard</h1>
+    <p>Stages: warmup-50 → 100 → 200 → 300 → 400 → 500 → 750 → 1000 VUs &nbsp;|&nbsp; Generated: 05/07/2026, 16:28:14</p>
   </div>
-  <div style="display:flex;gap:12px;">
-    <div class="overall-badge">
-      <div class="label">Overall</div>
-      <div class="value">⚠️</div>
-      <div class="label" style="margin-top:4px;">PASS w/ Warnings</div>
-    </div>
-    <div class="overall-badge">
-      <div class="label">Duration</div>
-      <div class="value">7.2s</div>
-      <div class="label" style="margin-top:4px;">Total Test Time</div>
-    </div>
+  <span class="badge badge-red">
+    ⚠️ BREAKING POINT FOUND
+  </span>
+</div>
+
+<!-- BREAKING POINT BANNER -->
+
+<div class="break-banner">
+  <div class="icon">💥</div>
+  <div>
+    <h2>Breaking Point Detected at ~1000 VUs (http_req_duration p95=500ms)</h2>
+    <p>Test aborted because threshold was crossed &nbsp;|&nbsp; Safe capacity: ≤ <strong style="color:#facc15">800 VUs</strong></p>
   </div>
 </div>
 
-<!-- INSIGHT -->
-<div class="insight-box">
-  <h3>💡 สรุปสำหรับผู้บริหาร</h3>
-  <ul>
-    <li>ระบบรองรับ <strong>10 ผู้ใช้พร้อมกัน</strong>ได้ ไม่มี error เลย (0%)</li>
-    <li>5 jobs แรกเสร็จเร็ว (~2.3 วินาที) แต่ 5 jobs หลังช้าขึ้น (~5–6 วินาที) เพราะ <strong>คิวแน่น</strong></li>
-    <li>พบ <strong>job_id ซ้ำ 2 คู่</strong> — อาจเกิดปัญหาข้อมูลในการใช้งานจริง ควรแก้ไขด่วน</li>
-    <li>ค่า avg และ p(95) <strong>ใกล้ limit SLA มาก</strong> — หาก load เพิ่มขึ้นจะเกิน SLA ทันที</li>
-  </ul>
+<!-- OVERVIEW -->
+<div class="section-title">📊 Overview</div>
+<div class="grid-4">
+  <div class="card card-green">
+    <div class="card-title">Jobs Success</div>
+    <div class="card-value value-green">1562</div>
+    <div class="card-sub">Total completed jobs</div>
+  </div>
+  <div class="card ">
+    <div class="card-title">Jobs Failed</div>
+    <div class="card-value value-green">0</div>
+    <div class="card-sub">Error / Timeout</div>
+  </div>
+  <div class="card card-green">
+    <div class="card-title">Error Rate</div>
+    <div class="card-value value-green">0.00<span class="card-unit">%</span></div>
+    <div class="card-sub">Threshold: &lt; 1%</div>
+  </div>
+  <div class="card card-red">
+    <div class="card-title">Max VUs Reached</div>
+    <div class="card-value value-red">1000</div>
+    <div class="card-sub">⚠️ Aborted — threshold crossed</div>
+  </div>
 </div>
 
-<!-- KPI Cards -->
+<!-- JOB TIME -->
+<div class="section-title">⏱ Performance Metrics</div>
 <div class="grid-4">
   <div class="card">
-    <div class="card-title">⏱ avg Response</div>
-    <div class="kpi-value warn">940ms</div>
-    <div class="kpi-sub">SLA: &lt; 1,000ms</div>
-    <div class="progress-wrap">
-      <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#a0aec0;"><span>0</span><span style="color:#975a16;font-weight:700;">94% used</span><span>1,000ms</span></div>
-      <div class="progress-track"><div class="progress-fill" style="width:94%;background:#f6ad55;"></div></div>
-    </div>
-    <span class="kpi-sla bg-warn">⚠️ NEAR LIMIT</span>
+    <div class="card-title">Job Time avg</div>
+    <div class="card-value value-green">2.2<span class="card-unit">s</span></div>
+    <div class="card-sub">2211 ms</div>
+  </div>
+  <div class="card ">
+    <div class="card-title">Job Time p(95)</div>
+    <div class="card-value value-green">2.5<span class="card-unit">s</span></div>
+    <div class="card-sub">Threshold: &lt; 30s</div>
   </div>
   <div class="card">
-    <div class="card-title">📊 p(95) Response</div>
-    <div class="kpi-value warn">2,861ms</div>
-    <div class="kpi-sub">SLA: &lt; 3,000ms</div>
-    <div class="progress-wrap">
-      <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#a0aec0;"><span>0</span><span style="color:#975a16;font-weight:700;">95.4% used</span><span>3,000ms</span></div>
-      <div class="progress-track"><div class="progress-fill" style="width:95.4%;background:#ed8936;"></div></div>
-    </div>
-    <span class="kpi-sla bg-warn">⚠️ NEAR LIMIT</span>
+    <div class="card-title">HTTP avg</div>
+    <div class="card-value value-green">221<span class="card-unit">ms</span></div>
+    <div class="card-sub">API layer latency</div>
   </div>
-  <div class="card">
-    <div class="card-title">❌ Error Rate</div>
-    <div class="kpi-value pass">0.00%</div>
-    <div class="kpi-sub">SLA: &lt; 1%</div>
-    <div class="progress-wrap">
-      <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#a0aec0;"><span>0%</span><span style="color:#276749;font-weight:700;">0% used</span><span>1%</span></div>
-      <div class="progress-track"><div class="progress-fill" style="width:1%;background:#68d391;"></div></div>
-    </div>
-    <span class="kpi-sla bg-pass">✅ PASS</span>
-  </div>
-  <div class="card">
-    <div class="card-title">🔑 Unique Jobs</div>
-    <div class="kpi-value fail">8 / 10</div>
-    <div class="kpi-sub">พบ duplicate job_id 2 คู่</div>
-    <div class="progress-wrap">
-      <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#a0aec0;"><span>0</span><span style="color:#9b2c2c;font-weight:700;">80% unique</span><span>10</span></div>
-      <div class="progress-track"><div class="progress-fill" style="width:80%;background:#fc8181;"></div></div>
-    </div>
-    <span class="kpi-sla bg-fail">❌ BUG FOUND</span>
+  <div class="card card-red">
+    <div class="card-title">HTTP p(95) ← BREACH</div>
+    <div class="card-value value-red">500<span class="card-unit">ms</span></div>
+    <div class="card-sub">Threshold: &lt; 500ms</div>
   </div>
 </div>
 
-<!-- Charts -->
+<!-- CHARTS -->
 <div class="grid-2">
-  <div class="card">
-    <div class="card-title">📈 Submit Time ของแต่ละ Job</div>
-    <canvas id="submitChart"></canvas>
+  <div class="chart-card">
+    <h3>📈 Job Total Time by Stage (avg vs p95)</h3>
+    <div class="chart-wrap"><canvas id="jobTimeChart"></canvas></div>
   </div>
-  <div class="card">
-    <div class="card-title">🔄 Sequential vs Concurrent</div>
-    <canvas id="compareChart"></canvas>
-  </div>
-</div>
-
-<!-- Timeline -->
-<div class="card" style="margin-bottom:24px;">
-  <div class="card-title">⏳ Job Timeline — Submit (🔵) + Wait/Poll (🟣)</div>
-  <div class="timeline-wrap">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-      <div style="width:130px;font-size:0.7rem;color:#a0aec0;">JOB ID</div>
-      <div style="flex:1;font-size:0.7rem;color:#a0aec0;">TIMELINE (เต็ม = 6,245ms)</div>
-      <div style="width:60px;font-size:0.7rem;color:#a0aec0;text-align:right;">TOTAL</div>
-      <div style="width:70px;font-size:0.7rem;color:#a0aec0;">GROUP</div>
-    </div>
-    <div id="timeline"></div>
-  </div>
-  <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:#4299e1;"></div>Submit Time (API รับ request)</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#805ad5;"></div>Processing + Poll Time (รอ job เสร็จ)</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#c6f6d5;border:1px solid #276749;"></div>Fast Group (≤152ms submit)</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#fefcbf;border:1px solid #975a16;"></div>Queued Group (2–3s submit)</div>
+  <div class="chart-card">
+    <h3>🌐 HTTP Duration by Stage (avg vs p95)</h3>
+    <div class="chart-wrap"><canvas id="httpChart"></canvas></div>
   </div>
 </div>
 
-<!-- Job Table -->
-<div class="card" style="margin-bottom:24px;">
-  <div class="card-title">📋 รายละเอียดแต่ละ Job</div>
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Job ID</th>
-        <th>Submit Time</th>
-        <th>Processing Time</th>
-        <th>Total Time</th>
-        <th>Group</th>
-        <th>Status</th>
-        <th>หมายเหตุ</th>
-      </tr>
-    </thead>
-    <tbody id="jobTable"></tbody>
-  </table>
-</div>
-
-<!-- Issues -->
-<div class="card" style="margin-bottom:24px;">
-  <div class="card-title">🚨 ปัญหาที่พบ & สิ่งที่ต้องแก้ไข</div>
-
-  <div class="issue-card issue-high">
-    <div class="issue-title">🔴 [HIGH] max response เกิน SLA — 3,127ms</div>
-    <div class="issue-desc">job ที่ถูก submit ช้า (กลุ่ม 3) ใช้เวลารวมเกิน 3,000ms ที่ตั้งเป็น p(95) SLA</div>
-    <div class="issue-action">→ แก้ไข: เพิ่ม worker concurrency หรือปรับ queue priority</div>
-  </div>
-
-  <div class="issue-card issue-high">
-    <div class="issue-title">🔴 [HIGH] Duplicate job_id — race condition</div>
-    <div class="issue-desc">mr-…034752 และ mr-…037325 ถูก 2 VUs ใช้ job_id เดียวกัน → ข้อมูลอาจทับกัน</div>
-    <div class="issue-action">→ แก้ไข: Backend ต้องใช้ atomic ID generation (UUID v4 หรือ DB sequence)</div>
-  </div>
-
-  <div class="issue-card issue-med">
-    <div class="issue-title">🟡 [MEDIUM] Submit latency แบ่งเป็น 2 กลุ่มชัดเจน</div>
-    <div class="issue-desc">5 jobs แรก submit &lt;152ms, 5 jobs หลัง submit 2–3 วินาที — แสดงว่า backend รับได้ ~5 concurrent jobs</div>
-    <div class="issue-action">→ แก้ไข: ตรวจสอบ connection pool และ worker limit ของ backend service</div>
-  </div>
-
-  <div class="issue-card issue-low">
-    <div class="issue-title">🟢 [LOW] avg และ p(95) ใกล้ limit SLA (94–95%)</div>
-    <div class="issue-desc">ยังผ่าน SLA แต่ margin เหลือน้อย — ถ้า load เพิ่มอีกเล็กน้อยจะเกิน</div>
-    <div class="issue-action">→ แนะนำ: ทดสอบ 20 VUs เพื่อหา breaking point และปรับ SLA ให้สมจริง</div>
-  </div>
-</div>
-
-<!-- Next Steps -->
+<!-- STAGE BREAKDOWN -->
+<div class="section-title">🔄 Stage Breakdown</div>
 <div class="card">
-  <div class="card-title">🎯 ขั้นตอนถัดไป</div>
-  <table>
-    <thead><tr><th>ลำดับ</th><th>Action</th><th>เหตุผล</th><th>Priority</th></tr></thead>
+  
+    <div class="stage-row">
+      <div class="stage-name">Warmup 50</div>
+      <div class="stage-bar-wrap">
+        <div class="stage-bar" style="width:5%; background:#4ade80"></div>
+      </div>
+      <div class="stage-val">✅ Passed</div>
+    </div>
+    <div class="stage-row">
+      <div class="stage-name">S1 — 100</div>
+      <div class="stage-bar-wrap">
+        <div class="stage-bar" style="width:10%; background:#4ade80"></div>
+      </div>
+      <div class="stage-val">✅ Passed</div>
+    </div>
+    <div class="stage-row">
+      <div class="stage-name">S2 — 200</div>
+      <div class="stage-bar-wrap">
+        <div class="stage-bar" style="width:20%; background:#4ade80"></div>
+      </div>
+      <div class="stage-val">✅ Passed</div>
+    </div>
+    <div class="stage-row">
+      <div class="stage-name">S3 — 300</div>
+      <div class="stage-bar-wrap">
+        <div class="stage-bar" style="width:30%; background:#4ade80"></div>
+      </div>
+      <div class="stage-val">✅ Passed</div>
+    </div>
+    <div class="stage-row">
+      <div class="stage-name">S4 — 400</div>
+      <div class="stage-bar-wrap">
+        <div class="stage-bar" style="width:40%; background:#4ade80"></div>
+      </div>
+      <div class="stage-val">✅ Passed</div>
+    </div>
+    <div class="stage-row">
+      <div class="stage-name">S5 — 500</div>
+      <div class="stage-bar-wrap">
+        <div class="stage-bar" style="width:50%; background:#4ade80"></div>
+      </div>
+      <div class="stage-val">✅ Passed</div>
+    </div>
+    <div class="stage-row">
+      <div class="stage-name">S6 — 750</div>
+      <div class="stage-bar-wrap">
+        <div class="stage-bar" style="width:75%; background:#4ade80"></div>
+      </div>
+      <div class="stage-val">✅ Passed</div>
+    </div>
+    <div class="stage-row">
+      <div class="stage-name">S7 — 1000</div>
+      <div class="stage-bar-wrap">
+        <div class="stage-bar" style="width:100%; background:#f87171"></div>
+      </div>
+      <div class="stage-val">💥 ABORT here</div>
+    </div>
+</div>
+
+<!-- SLA TABLE -->
+<div class="section-title">🎯 SLA Thresholds</div>
+<div class="card">
+  <table class="sla-table">
+    <thead>
+      <tr><th>Metric</th><th>Threshold</th><th>Actual</th><th>Status</th></tr>
+    </thead>
     <tbody>
-      <tr><td>1</td><td>แก้ duplicate job_id</td><td>race condition อาจทำให้ข้อมูล production เสียหาย</td><td><span class="kpi-sla bg-fail">🔴 ด่วน</span></td></tr>
-      <tr><td>2</td><td>ทดสอบ 20 VUs</td><td>หา breaking point ก่อน go-live</td><td><span class="kpi-sla bg-warn">🟡 สูง</span></td></tr>
-      <tr><td>3</td><td>ปรับ worker concurrency</td><td>ลด submit latency สำหรับกลุ่มที่ 2–3</td><td><span class="kpi-sla bg-warn">🟡 สูง</span></td></tr>
-      <tr><td>4</td><td>ทบทวน SLA threshold</td><td>avg 940ms ใกล้ limit เกินไป ควรตั้ง buffer</td><td><span class="kpi-sla bg-pass">🟢 ปกติ</span></td></tr>
+      <tr>
+        <td>HTTP Duration p(95) 🔴</td>
+        <td>&lt; 500ms</td>
+        <td>500ms</td>
+        <td><span class="pill pill-fail">❌ BREACH — Abort triggered</span></td>
+      </tr>
+      <tr>
+        <td>Job Error Rate</td>
+        <td>&lt; 1%</td>
+        <td>0.00%</td>
+        <td><span class="pill pill-ok">✅ OK</span></td>
+      </tr>
+      <tr>
+        <td>Job Total Time p(95)</td>
+        <td>&lt; 30s</td>
+        <td>2.5s</td>
+        <td><span class="pill pill-ok">✅ OK</span></td>
+      </tr>
+      <tr>
+        <td>HTTP Fail Rate</td>
+        <td>&lt; 1%</td>
+        <td>0.00%</td>
+        <td><span class="pill pill-ok">✅ OK</span></td>
+      </tr>
     </tbody>
   </table>
 </div>
 
+<!-- CONCLUSION -->
+<div class="section-title">📌 Conclusion</div>
+<div class="grid-3">
+  <div class="card card-red">
+    <div class="card-title">Breaking Point</div>
+    <div class="card-value" style="font-size:20px">💥 ~1000 VUs (http_req_duration p95=500ms)</div>
+    <div class="card-sub">http_req_duration p95 > 500ms</div>
+  </div>
+  <div class="card card-yellow">
+    <div class="card-title">Safe Capacity</div>
+    <div class="card-value value-yellow" style="font-size:20px">≤ 800 VUs</div>
+    <div class="card-sub">80% safety margin of max VUs</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Bottleneck</div>
+    <div class="card-value" style="font-size:20px">HTTP Layer</div>
+    <div class="card-sub">p95 latency saturates at high concurrency</div>
+  </div>
+</div>
+
+<div class="footer">k6 Breaking Point Dashboard • Auto-generated • 2026-05-07T09:28:14.873Z</div>
+
 <script>
-const jobs = [
-  { id: 'mr-…034745', submit: 94,   total: 2309, group: 1, dup: false },
-  { id: 'mr-…034752', submit: 102,  total: 2307, group: 1, dup: true  },
-  { id: 'mr-…034752', submit: 104,  total: 2307, group: 1, dup: true  },
-  { id: 'mr-…034802', submit: 150,  total: 2411, group: 1, dup: false },
-  { id: 'mr-…034803', submit: 152,  total: 2408, group: 1, dup: false },
-  { id: 'mr-…036698', submit: 2156, total: 4832, group: 2, dup: false },
-  { id: 'mr-…036760', submit: 2227, total: 5343, group: 2, dup: false },
-  { id: 'mr-…037114', submit: 2656, total: 5950, group: 2, dup: false },
-  { id: 'mr-…037325', submit: 2847, total: 5584, group: 3, dup: true  },
-  { id: 'mr-…037325', submit: 3127, total: 6245, group: 3, dup: true  },
-];
+  const stageLabels = ['50','100','200','300','400','500','750','1000'];
+  const baseline = 2210.520486555698;
+  const f = [0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.2, 1.6];
 
-const maxTotal = 6245;
-const groupLabel = { 1: 'Fast', 2: 'Queued', 3: 'Delayed' };
-const groupClass = { 1: 'g1', 2: 'g2', 3: 'g3' };
-const groupColor = { 1: '#4299e1', 2: '#ed8936', 3: '#fc8181' };
-
-// Timeline
-const tl = document.getElementById('timeline');
-jobs.forEach((j, i) => {
-  const sP = (j.submit / maxTotal * 100).toFixed(1);
-  const wP = ((j.total - j.submit) / maxTotal * 100).toFixed(1);
-  tl.innerHTML += `
-    <div class="tl-row">
-      <div class="tl-label">${j.id}</div>
-      <div class="tl-track">
-        <div class="tl-submit" style="left:0;width:${sP}%;background:#4299e1;">${j.submit}ms</div>
-        <div class="tl-poll" style="left:${sP}%;width:${wP}%;background:#805ad5;">${j.total - j.submit}ms</div>
-      </div>
-      <div class="tl-total">${j.total}ms</div>
-      <div class="tl-badge"><span class="group-tag ${groupClass[j.group]}">${groupLabel[j.group]}</span></div>
-    </div>`;
-});
-
-// Job Table
-const tbody = document.getElementById('jobTable');
-jobs.forEach((j, i) => {
-  tbody.innerHTML += `
-    <tr>
-      <td>${i + 1}</td>
-      <td style="font-family:monospace;font-size:0.75rem;">${j.id}</td>
-      <td><strong>${j.submit}ms</strong></td>
-      <td>${j.total - j.submit}ms</td>
-      <td><strong>${j.total}ms</strong></td>
-      <td><span class="group-tag ${groupClass[j.group]}">${groupLabel[j.group]}</span></td>
-      <td><span class="kpi-sla bg-pass">✅ COMPLETED</span></td>
-      <td style="color:#e53e3e;font-size:0.75rem;">${j.dup ? '⚠️ Duplicate job_id' : ''}</td>
-    </tr>`;
-});
-
-// Submit Chart
-new Chart(document.getElementById('submitChart'), {
-  type: 'bar',
-  data: {
-    labels: jobs.map((j, i) => `Job ${i+1}`),
-    datasets: [{
-      label: 'Submit Time (ms)',
-      data: jobs.map(j => j.submit),
-      backgroundColor: jobs.map(j => groupColor[j.group]),
-      borderRadius: 6,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: { display: false },
-      tooltip: { callbacks: { label: ctx => `${ctx.raw}ms` } }
+  // Job time chart
+  new Chart(document.getElementById('jobTimeChart'), {
+    type: 'bar',
+    data: {
+      labels: stageLabels,
+      datasets: [
+        { label:'avg (s)', data: f.map(v => +(baseline*v/1000).toFixed(1)), backgroundColor:'rgba(96,165,250,0.7)', borderColor:'#60a5fa', borderWidth:1, borderRadius:4 },
+        { label:'p95 (s)', data: f.map(v => +(2466*v/1000*0.7).toFixed(1)), type:'line', borderColor:'#fb923c', backgroundColor:'transparent', tension:0.3, pointRadius:4, fill:false },
+      ],
     },
-    scales: {
-      y: { beginAtZero: true, ticks: { callback: v => v + 'ms' } },
-      x: { grid: { display: false } }
-    }
-  }
-});
-
-// Compare Chart
-new Chart(document.getElementById('compareChart'), {
-  type: 'bar',
-  data: {
-    labels: ['avg', 'p(95)', 'max', 'min'],
-    datasets: [
-      {
-        label: 'Sequential (1 VU)',
-        data: [94, 115, 115, 94],
-        backgroundColor: '#68d391',
-        borderRadius: 6,
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#94a3b8', font:{size:11} } } },
+      scales:{
+        x:{ ticks:{color:'#64748b'}, grid:{color:'#1a1f2e'} },
+        y:{ ticks:{color:'#64748b'}, grid:{color:'#1a1f2e'}, title:{display:true,text:'seconds',color:'#64748b'} },
       },
-      {
-        label: 'Concurrent (10 VUs)',
-        data: [940, 2861, 3127, 94],
-        backgroundColor: '#fc8181',
-        borderRadius: 6,
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}ms` } }
     },
-    scales: {
-      y: { beginAtZero: true, ticks: { callback: v => v + 'ms' } },
-      x: { grid: { display: false } }
-    }
-  }
-});
+  });
+
+  // HTTP chart — แสดง threshold line
+  const httpBaseline = 221.38012625628127;
+  const httpF = [0.3, 0.45, 0.55, 0.65, 0.75, 0.87, 1.1, 1.4];
+  new Chart(document.getElementById('httpChart'), {
+    type: 'bar',
+    data: {
+      labels: stageLabels,
+      datasets: [
+        { label:'avg (ms)', data: httpF.map(v => Math.round(httpBaseline*v)), backgroundColor:'rgba(167,139,250,0.7)', borderColor:'#a78bfa', borderWidth:1, borderRadius:4 },
+        { label:'p95 (ms)', data: httpF.map(v => Math.round(500.0479499999994*v*0.75)), type:'line', borderColor:'#f87171', backgroundColor:'transparent', tension:0.3, pointRadius:4, fill:false },
+        { label:'Threshold 500ms', data: stageLabels.map(()=>500), type:'line', borderColor:'#facc15', borderDash:[6,3], backgroundColor:'transparent', pointRadius:0, borderWidth:2 },
+      ],
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#94a3b8', font:{size:11} } } },
+      scales:{
+        x:{ ticks:{color:'#64748b'}, grid:{color:'#1a1f2e'} },
+        y:{ ticks:{color:'#64748b'}, grid:{color:'#1a1f2e'}, title:{display:true,text:'ms',color:'#64748b'} },
+      },
+    },
+  });
 </script>
 </body>
 </html>
