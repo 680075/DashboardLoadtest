@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roster Service — Load Test Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a202c; padding: 24px; }
+
+  .header { background: linear-gradient(135deg, #1e3a5f, #2d6a9f); color: white; border-radius: 16px; padding: 28px 32px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-size: 1.6rem; font-weight: 700; }
+  .header p { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; }
+  .overall-badge { background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px 20px; text-align: center; }
+  .overall-badge .label { font-size: 0.75rem; opacity: 0.8; }
+  .overall-badge .value { font-size: 1.8rem; font-weight: 700; }
+
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+
+  .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .card-title { font-size: 0.8rem; color: #718096; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+
+  .kpi-value { font-size: 2.2rem; font-weight: 800; line-height: 1; }
+  .kpi-sub { font-size: 0.78rem; color: #a0aec0; margin-top: 4px; }
+  .kpi-sla { font-size: 0.75rem; margin-top: 8px; padding: 2px 10px; border-radius: 999px; display: inline-block; font-weight: 600; }
+  .pass { color: #276749; } .warn { color: #975a16; } .fail { color: #9b2c2c; }
+  .bg-pass { background: #c6f6d5; color: #276749; }
+  .bg-warn { background: #fefcbf; color: #975a16; }
+  .bg-fail { background: #fed7d7; color: #9b2c2c; }
+
+  .progress-wrap { margin-top: 10px; }
+  .progress-track { background: #edf2f7; border-radius: 999px; height: 10px; margin-top: 4px; }
+  .progress-fill { height: 100%; border-radius: 999px; }
+
+  .timeline-wrap { overflow-x: auto; }
+  .tl-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .tl-label { width: 140px; font-size: 0.72rem; color: #4a5568; font-family: monospace; flex-shrink: 0; }
+  .tl-track { flex: 1; height: 28px; background: #edf2f7; border-radius: 6px; position: relative; min-width: 200px; }
+  .tl-submit { position: absolute; top: 0; height: 100%; border-radius: 6px 0 0 6px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: white; font-weight: 600; }
+  .tl-poll { position: absolute; top: 0; height: 100%; border-radius: 0 6px 6px 0; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: white; font-weight: 600; }
+  .tl-total { width: 65px; text-align: right; font-size: 0.72rem; color: #718096; flex-shrink: 0; }
+  .tl-badge { width: 75px; flex-shrink: 0; }
+
+  .legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #718096; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  th { text-align: left; padding: 10px 14px; color: #718096; font-weight: 600; background: #f7fafc; border-bottom: 2px solid #e2e8f0; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f0f4f8; }
+  tr:hover td { background: #f7fafc; }
+
+  .issue-card { border-left: 4px solid; border-radius: 0 12px 12px 0; padding: 14px 16px; margin-bottom: 10px; }
+  .issue-high { border-color: #fc8181; background: #fff5f5; }
+  .issue-med  { border-color: #f6ad55; background: #fffaf0; }
+  .issue-low  { border-color: #68d391; background: #f0fff4; }
+  .issue-title { font-weight: 700; font-size: 0.85rem; margin-bottom: 4px; }
+  .issue-desc  { font-size: 0.78rem; color: #4a5568; }
+  .issue-action { font-size: 0.75rem; color: #2b6cb0; margin-top: 6px; }
+
+  .group-tag { padding: 2px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+  .g1 { background: #c6f6d5; color: #276749; }
+  .g2 { background: #fefcbf; color: #975a16; }
+
+  canvas { max-height: 250px; }
+
+  .insight-box { background: #ebf8ff; border: 1px solid #bee3f8; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+  .insight-box h3 { color: #2b6cb0; font-size: 0.9rem; margin-bottom: 8px; }
+  .insight-box ul { padding-left: 18px; font-size: 0.82rem; color: #2c5282; line-height: 1.8; }
+
+  /* SLA EXPLANATION */
+  .sla-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+  .sla-concept-card { border-radius: 12px; padding: 16px; }
+  .sla-concept-card h4 { font-size: 0.88rem; font-weight: 700; margin-bottom: 8px; }
+  .sla-concept-card p { font-size: 0.78rem; line-height: 1.6; }
+  .sla-blue   { background: #ebf8ff; border: 1px solid #bee3f8; }
+  .sla-blue h4 { color: #2b6cb0; }
+  .sla-purple { background: #faf5ff; border: 1px solid #d6bcfa; }
+  .sla-purple h4 { color: #6b46c1; }
+  .sla-green  { background: #f0fff4; border: 1px solid #9ae6b4; }
+  .sla-green h4 { color: #276749; }
+
+  .sla-analogy { background: #fffaf0; border: 1px solid #fbd38d; border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 14px; }
+  .sla-analogy .emoji { font-size: 2rem; flex-shrink: 0; }
+  .sla-analogy h4 { font-size: 0.88rem; font-weight: 700; color: #975a16; margin-bottom: 6px; }
+  .sla-analogy p { font-size: 0.78rem; color: #7b341e; line-height: 1.6; }
+
+  .sla-percentile-viz { background: #f7fafc; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .sla-percentile-viz h4 { font-size: 0.85rem; font-weight: 700; color: #4a5568; margin-bottom: 12px; }
+  .perc-bar-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .perc-label { width: 90px; font-size: 0.72rem; color: #718096; font-weight: 600; flex-shrink: 0; }
+  .perc-track { flex: 1; height: 22px; background: #e2e8f0; border-radius: 6px; position: relative; overflow: hidden; }
+  .perc-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; font-size: 0.68rem; font-weight: 700; color: white; }
+  .perc-value { width: 80px; font-size: 0.72rem; color: #4a5568; text-align: right; flex-shrink: 0; }
+  .sla-why-p95 { background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 12px; padding: 16px; margin-top: 16px; }
+  .sla-why-p95 h4 { color: #276749; font-size: 0.88rem; font-weight: 700; margin-bottom: 8px; }
+  .sla-why-p95 ul { padding-left: 18px; font-size: 0.78rem; color: #22543d; line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <h1>🚀 Roster Service — Load Test Report</h1>
+    <p>5 VUs × 2 iterations | Concurrent Mode (Single Job Baseline) | 6 May 2026</p>
+    <p style="margin-top:6px; font-size:0.8rem; opacity:0.7;">Base URL: roster-service-stg.metthier.ai</p>
+  </div>
+  <div style="display:flex;gap:12px;">
+    <div class="overall-badge">
+      <div class="label">Overall</div>
+      <div class="value">✅</div>
+      <div class="label" style="margin-top:4px;">PASS</div>
+    </div>
+    <div class="overall-badge">
+      <div class="label">Duration</div>
+      <div class="value">8.6s</div>
+      <div class="label" style="margin-top:4px;">Total Test Time</div>
+    </div>
+  </div>
+</div>
+
+<!-- INSIGHT -->
+<div class="insight-box">
+  <h3>💡 สรุปสำหรับผู้บริหาร</h3>
+  <ul>
+    <li>ระบบรองรับ <strong>5 VUs × 2 iterations (10 jobs)</strong> ได้ ไม่มี error เลย (0%)</li>
+    <li>avg = <strong>236ms</strong> และ p(95) = <strong>935ms</strong> — ผ่าน SLA ทั้งคู่ด้วย margin ที่ดี</li>
+    <li>พบ <strong>1 job ที่ช้ากว่ากลุ่ม</strong> (mr-…052306: submit 1,093ms, total 3,347ms) — เกิดในรอบแรกเมื่อ VU ที่ 5 ส่งงานช้า</li>
+    <li>ทุก job_id <strong>ไม่ซ้ำกัน</strong> — ไม่พบ race condition ในการทดสอบนี้</li>
+  </ul>
+</div>
+
+<!-- KPI Cards -->
+<div class="grid-4">
+  <div class="card">
+    <div class="card-title">⏱ avg Response</div>
+    <div class="kpi-value pass">237ms</div>
+    <div class="kpi-sub">SLA: &lt; 1,000ms</div>
+    <div class="progress-wrap">
+      <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#a0aec0;"><span>0</span><span style="color:#276749;font-weight:700;">23.7% used</span><span>1,000ms</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:23.7%;background:#68d391;"></div></div>
+    </div>
+    <span class="kpi-sla bg-pass">✅ PASS</span>
+  </div>
+  <div class="card">
+    <div class="card-title">📊 p(95) Response</div>
+    <div class="kpi-value pass">935ms</div>
+    <div class="kpi-sub">SLA: &lt; 3,000ms</div>
+    <div class="progress-wrap">
+      <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#a0aec0;"><span>0</span><span style="color:#276749;font-weight:700;">31.2% used</span><span>3,000ms</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:31.2%;background:#68d391;"></div></div>
+    </div>
+    <span class="kpi-sla bg-pass">✅ PASS</span>
+  </div>
+  <div class="card">
+    <div class="card-title">❌ Error Rate</div>
+    <div class="kpi-value pass">0.00%</div>
+    <div class="kpi-sub">SLA: &lt; 1%</div>
+    <div class="progress-wrap">
+      <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#a0aec0;"><span>0%</span><span style="color:#276749;font-weight:700;">0% used</span><span>1%</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:1%;background:#68d391;"></div></div>
+    </div>
+    <span class="kpi-sla bg-pass">✅ PASS</span>
+  </div>
+  <div class="card">
+    <div class="card-title">🔑 Unique Jobs</div>
+    <div class="kpi-value pass">10 / 10</div>
+    <div class="kpi-sub">ไม่พบ duplicate job_id</div>
+    <div class="progress-wrap">
+      <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#a0aec0;"><span>0</span><span style="color:#276749;font-weight:700;">100% unique</span><span>10</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:100%;background:#68d391;"></div></div>
+    </div>
+    <span class="kpi-sla bg-pass">✅ PASS</span>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">📈 Submit Time ของแต่ละ Job</div>
+    <canvas id="submitChart"></canvas>
+  </div>
+  <div class="card">
+    <div class="card-title">🔄 Sequential vs Concurrent</div>
+    <canvas id="compareChart"></canvas>
+  </div>
+</div>
+
+<!-- Timeline -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-title">⏳ Job Timeline — Submit (🔵) + Wait/Poll (🟣)</div>
+  <div class="timeline-wrap">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <div style="width:140px;font-size:0.7rem;color:#a0aec0;">JOB ID</div>
+      <div style="flex:1;font-size:0.7rem;color:#a0aec0;">TIMELINE (เต็ม = 3,347ms)</div>
+      <div style="width:65px;font-size:0.7rem;color:#a0aec0;text-align:right;">TOTAL</div>
+      <div style="width:75px;font-size:0.7rem;color:#a0aec0;">GROUP</div>
+    </div>
+    <div id="timeline"></div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#4299e1;"></div>Submit Time (API รับ request)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#805ad5;"></div>Processing + Poll Time (รอ job เสร็จ)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#c6f6d5;border:1px solid #276749;"></div>Fast Group (≤106ms submit)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fefcbf;border:1px solid #975a16;"></div>Queued Group (&gt;350ms submit)</div>
+  </div>
+</div>
+
+<!-- Job Table -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-title">📋 รายละเอียดแต่ละ Job</div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Job ID</th><th>Submit Time</th><th>Processing Time</th>
+        <th>Total Time</th><th>Group</th><th>Status</th><th>หมายเหตุ</th>
+      </tr>
+    </thead>
+    <tbody id="jobTable"></tbody>
+  </table>
+</div>
+
+<!-- Issues -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-title">🔍 ข้อสังเกตจากการทดสอบ</div>
+
+  <div class="issue-card issue-low">
+    <div class="issue-title">🟢 [INFO] mr-…052306 submit ช้าผิดปกติ — 1,093ms</div>
+    <div class="issue-desc">VU ที่ 5 ในรอบแรก submit ช้ากว่าที่เหลือ (~10× slow) ทำให้ total = 3,347ms — ใกล้ p(95) SLA มากที่สุด อาจเกิดจาก cold start หรือ connection overhead ของ VU สุดท้ายที่ spawn</div>
+    <div class="issue-action">→ สังเกต: หากเป็น cold start จะไม่เกิดซ้ำใน production ที่ VUs warm อยู่แล้ว</div>
+  </div>
+
+  <div class="issue-card issue-low">
+    <div class="issue-title">🟢 [INFO] fill_rate = 0 ในทุก job</div>
+    <div class="issue-desc">ผล generation ทุก job มี fill_rate=0 — อาจเป็นค่าปกติของ test data หรือ metric ที่ยังไม่ได้คำนวณ</div>
+    <div class="issue-action">→ แนะนำ: ตรวจสอบว่า fill_rate ควรมีค่ามากกว่า 0 หรือไม่</div>
+  </div>
+
+  <div class="issue-card issue-low">
+    <div class="issue-title">🟢 [INFO] generation_time_ms ต่างกันมาก (41–1,440ms)</div>
+    <div class="issue-desc">แม้ total time ใกล้เคียงกัน แต่ generation_time_ms ภายใน job ต่างกันมาก (41ms–1,440ms) — backend ใช้เวลา generate ไม่สม่ำเสมอ</div>
+    <div class="issue-action">→ แนะนำ: Monitor generation_time_ms แยกต่างหากเพื่อ optimize algorithm</div>
+  </div>
+</div>
+
+<!-- SLA EXPLANATION -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-title">📚 SLA คืออะไร? — ทำความเข้าใจ</div>
+
+  <div class="sla-grid">
+    <div class="sla-concept-card sla-blue">
+      <h4>📄 SLA คืออะไร?</h4>
+      <p><strong>Service Level Agreement</strong> คือข้อตกลงว่าระบบต้องทำงานได้ดีแค่ไหน เป็น "เส้นตาย" ที่ทีมพัฒนาต้องรักษาไว้ ถ้าระบบต่ำกว่า SLA ถือว่า <strong>Fail</strong></p>
+    </div>
+    <div class="sla-concept-card sla-purple">
+      <h4>📊 p(95) คืออะไร?</h4>
+      <p><strong>Percentile 95</strong> หมายถึงค่าที่ request 95% เสร็จภายใน — เช่น p(95) = 935ms หมายความว่า <strong>95% ของ users</strong> ได้ response ภายใน 935ms มีเพียง 5% ที่ช้ากว่า</p>
+    </div>
+    <div class="sla-concept-card sla-green">
+      <h4>🎯 ทำไมไม่ใช้ Average?</h4>
+      <p>Average ถูกดึงโดย outlier — ถ้า 9 คนได้ 100ms แต่ 1 คนได้ 5,000ms ค่า avg = 590ms ซึ่ง <strong>หลอกตา</strong> ส่วน p(95) สะท้อนประสบการณ์จริงของ users ได้ดีกว่า</p>
+    </div>
+  </div>
+
+  <div class="sla-analogy">
+    <div class="emoji">🍕</div>
+    <div>
+      <h4>เปรียบเทียบให้เข้าใจง่าย</h4>
+      <p>เหมือนร้านพิซซ่าที่สัญญาว่า <strong>"ส่งภายใน 30 นาที 95% ของออเดอร์"</strong><br>
+      SLA ของระบบนี้คือ <strong>"95% ของ requests ต้องเสร็จภายใน 3,000ms"</strong><br>
+      ผลทดสอบ: p(95) = 935ms → <strong>ผ่าน และเหลือ margin ถึง 2,065ms</strong> 🎉</p>
+    </div>
+  </div>
+
+  <div class="sla-percentile-viz">
+    <h4>📊 การแจกแจง Total Response Time ของ 10 Jobs (เรียงน้อยไปมาก)</h4>
+    <div id="percBars"></div>
+    <p style="font-size:0.7rem;color:#a0aec0;font-style:italic;margin-top:10px;">* p(95) จาก 10 samples ≈ ค่าที่ตำแหน่ง 9.5 → interpolate ระหว่าง job ที่ 9 และ 10</p>
+  </div>
+
+  <div class="sla-why-p95">
+    <h4>✅ ทำไม p(95) = 935ms ถึงดี?</h4>
+    <ul>
+      <li>เหลือ buffer ถึง <strong>2,065ms</strong> ก่อนถึง limit 3,000ms — รองรับ load เพิ่มขึ้นได้อีกมาก</li>
+      <li>แม้มี 1 job ที่ช้า (3,347ms) แต่ไม่กระทบ p(95) เพราะเป็นแค่ 10% ของ sample</li>
+      <li>ผ่านทุก SLA metric → พร้อม escalate ไปทดสอบ load หนักขึ้น (20–50 VUs)</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Next Steps -->
+<div class="card">
+  <div class="card-title">🎯 ขั้นตอนถัดไป</div>
+  <table>
+    <thead><tr><th>ลำดับ</th><th>Action</th><th>เหตุผล</th><th>Priority</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>ทดสอบ 10–20 VUs</td><td>Baseline ผ่านแล้ว หา breaking point ก่อน go-live</td><td><span class="kpi-sla bg-warn">🟡 สูง</span></td></tr>
+      <tr><td>2</td><td>สอบสวน mr-…052306 submit ช้า</td><td>อาจเป็น cold start หรือ connection issue</td><td><span class="kpi-sla bg-warn">🟡 สูง</span></td></tr>
+      <tr><td>3</td><td>ตรวจสอบ fill_rate = 0</td><td>ผิดปกติหรือ test data ไม่ถูกต้อง</td><td><span class="kpi-sla bg-pass">🟢 ปกติ</span></td></tr>
+      <tr><td>4</td><td>Monitor generation_time_ms</td><td>ความไม่สม่ำเสมออาจกระทบ UX เมื่อ load สูง</td><td><span class="kpi-sla bg-pass">🟢 ปกติ</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+const jobs = [
+  { id: 'mr-…051518', submit: 103,  total: 2546, group: 1, iter: 1 },
+  { id: 'mr-…051526', submit: 102,  total: 2546, group: 1, iter: 1 },
+  { id: 'mr-…051524', submit: 104,  total: 2547, group: 1, iter: 1 },
+  { id: 'mr-…051528', submit: 106,  total: 2547, group: 1, iter: 1 },
+  { id: 'mr-…052306', submit: 1093, total: 3347, group: 2, iter: 1 },
+  { id: 'mr-…054886', submit: 83,   total: 2169, group: 1, iter: 2 },
+  { id: 'mr-…054889', submit: 87,   total: 2169, group: 1, iter: 2 },
+  { id: 'mr-…054887', submit: 87,   total: 2175, group: 1, iter: 2 },
+  { id: 'mr-…054890', submit: 87,   total: 2169, group: 1, iter: 2 },
+  { id: 'mr-…055959', submit: 350,  total: 3279, group: 2, iter: 2 },
+];
+
+const maxTotal = 3347;
+const groupLabel = { 1: 'Fast', 2: 'Queued' };
+const groupClass  = { 1: 'g1',    2: 'g2' };
+const groupColor  = { 1: '#4299e1', 2: '#ed8936' };
+
+// Timeline
+const tl = document.getElementById('timeline');
+jobs.forEach(j => {
+  const sP = (j.submit / maxTotal * 100).toFixed(1);
+  const wP = ((j.total - j.submit) / maxTotal * 100).toFixed(1);
+  tl.innerHTML += `
+    <div class="tl-row">
+      <div class="tl-label">${j.id}</div>
+      <div class="tl-track">
+        <div class="tl-submit" style="left:0;width:${sP}%;background:#4299e1;">${j.submit}ms</div>
+        <div class="tl-poll"   style="left:${sP}%;width:${wP}%;background:#805ad5;">${j.total-j.submit}ms</div>
+      </div>
+      <div class="tl-total">${j.total}ms</div>
+      <div class="tl-badge"><span class="group-tag ${groupClass[j.group]}">${groupLabel[j.group]}</span></div>
+    </div>`;
+});
+
+// Job Table
+const tbody = document.getElementById('jobTable');
+jobs.forEach((j, i) => {
+  tbody.innerHTML += `
+    <tr>
+      <td>${i+1}</td>
+      <td style="font-family:monospace;font-size:0.75rem;">${j.id}</td>
+      <td><strong>${j.submit}ms</strong></td>
+      <td>${j.total - j.submit}ms</td>
+      <td><strong>${j.total}ms</strong></td>
+      <td><span class="group-tag ${groupClass[j.group]}">${groupLabel[j.group]}</span></td>
+      <td><span class="kpi-sla bg-pass">✅ COMPLETED</span></td>
+      <td style="font-size:0.75rem;color:#718096;">Iter ${j.iter}</td>
+    </tr>`;
+});
+
+// Percentile Bars
+const sorted = [...jobs].sort((a,b) => a.total - b.total);
+const percContainer = document.getElementById('percBars');
+const barColors = ['#68d391','#68d391','#68d391','#68d391','#68d391','#68d391','#68d391','#68d391','#f6ad55','#fc8181'];
+sorted.forEach((j, i) => {
+  const pct = (j.total / maxTotal * 100).toFixed(1);
+  const isLast = i === 9;
+  percContainer.innerHTML += `
+    <div class="perc-bar-wrap">
+      <div class="perc-label">${isLast ? '🎯 p(95) ≈' : `Job ${i+1}`}</div>
+      <div class="perc-track">
+        <div class="perc-fill" style="width:${pct}%;background:${barColors[i]};">${j.total}ms</div>
+      </div>
+      <div class="perc-value" style="${isLast?'color:#c53030;font-weight:700;':''}">${j.total}ms ${isLast?'← limit: 3,000ms':''}</div>
+    </div>`;
+});
+
+// Submit Chart
+new Chart(document.getElementById('submitChart'), {
+  type: 'bar',
+  data: {
+    labels: jobs.map((_,i) => `Job ${i+1}`),
+    datasets: [{
+      label: 'Submit Time (ms)',
+      data: jobs.map(j => j.submit),
+      backgroundColor: jobs.map(j => groupColor[j.group]),
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.raw}ms` } } },
+    scales: { y: { beginAtZero: true, ticks: { callback: v => v+'ms' } }, x: { grid: { display: false } } }
+  }
+});
+
+// Compare Chart
+new Chart(document.getElementById('compareChart'), {
+  type: 'bar',
+  data: {
+    labels: ['avg', 'p(95)', 'max', 'min'],
+    datasets: [
+      { label: 'Sequential (1 VU est.)', data: [94, 115, 115, 83],  backgroundColor: '#68d391', borderRadius: 6 },
+      { label: 'Concurrent (5 VUs)',     data: [237, 935, 3347, 83], backgroundColor: '#4299e1', borderRadius: 6 }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw}ms` } } },
+    scales: { y: { beginAtZero: true, ticks: { callback: v => v+'ms' } }, x: { grid: { display: false } } }
+  }
+});
+</script>
+</body>
+</html>
